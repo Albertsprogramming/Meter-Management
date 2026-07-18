@@ -334,21 +334,6 @@ function phraseFor(s){
   }[s.status];
 }
 
-function buildSpark(readings){
-  if(readings.length < 2) return '';
-  const last = readings.slice(-14);
-  const w = 240, h = 32, pad = 3;
-  const vals = last.map(r=>r.value);
-  const min = Math.min(...vals), max = Math.max(...vals);
-  const range = (max-min) || 1;
-  const pts = last.map((r,i)=>{
-    const x = pad + (i/(last.length-1)) * (w-pad*2);
-    const y = h-pad - ((r.value-min)/range)*(h-pad*2);
-    return x.toFixed(1)+','+y.toFixed(1);
-  }).join(' ');
-  return '<svg width="'+w+'" height="'+h+'" viewBox="0 0 '+w+' '+h+'" style="display:block;margin-bottom:12px;"><polyline points="'+pts+'" fill="none" stroke="#B9C6B2" stroke-width="1.6"/></svg>';
-}
-
 function statusLabel(s){ return {ok:'Healthy', low:'Low', crit:'Critical', empty:'Empty', nodata:'No data'}[s]; }
 
 function addDays(dateStr, days){
@@ -359,70 +344,73 @@ function addDays(dateStr, days){
 function fmtDateShort(d){
   return new Date(d).toLocaleDateString('en-GB',{day:'numeric', month:'short'});
 }
+function fmtDateFull(d){
+  return new Date(d).toLocaleDateString('en-GB',{weekday:'short', day:'numeric', month:'short'});
+}
 
-function buildDetailedChart(meterId){
-  const s = getStats(meterId);
-  const readings = s.readings;
-  if(readings.length === 0){
-    return '<p class="empty-note">No readings yet — log a balance to start the graph.</p>';
+function expectedFinishText(s){
+  if(s.status==='nodata') return null;
+  if(s.confirmedEmpty) return 'Confirmed empty on '+fmtDateShort(s.anchor.date);
+  if(s.projected <= 0.01) return 'Likely already out — please confirm';
+  if(s.daysRemaining === null) return null;
+  const finishDate = addDays(todayStr(), s.daysRemaining);
+  return 'Expected to finish '+fmtDateFull(finishDate);
+}
+
+function refAmountFor(meterId){
+  const ov = state.meterAssumption[meterId];
+  if(ov && ov.amount > 0) return ov.amount;
+  return state.globalAssumption.amount;
+}
+function ringPercent(meterId, s){
+  if(s.status==='nodata') return 0;
+  const ref = refAmountFor(meterId);
+  return Math.max(0, Math.min(100, (s.projected/ref)*100));
+}
+
+const STATUS_COLORS = {ok:'#1F6F5C', low:'#C98A2C', crit:'#D8593F', empty:'#D8593F', nodata:'#D3D9C9'};
+
+function buildRing(percent, status, size, strokeWidth){
+  const r = (size - strokeWidth)/2;
+  const c = 2*Math.PI*r;
+  const dash = c * Math.max(0, Math.min(100, percent))/100;
+  const color = STATUS_COLORS[status] || '#D3D9C9';
+  const cx = size/2, cy = size/2;
+  let svg = '<svg width="'+size+'" height="'+size+'" viewBox="0 0 '+size+' '+size+'">';
+  svg += '<circle cx="'+cx+'" cy="'+cy+'" r="'+r+'" fill="none" stroke="#E4E8DE" stroke-width="'+strokeWidth+'"/>';
+  if(status !== 'nodata'){
+    svg += '<circle cx="'+cx+'" cy="'+cy+'" r="'+r+'" fill="none" stroke="'+color+'" stroke-width="'+strokeWidth+'" stroke-linecap="round" stroke-dasharray="'+dash.toFixed(1)+' '+c.toFixed(1)+'" transform="rotate(-90 '+cx+' '+cy+')"/>';
   }
-  const startDate = readings[0].date;
-  const today = todayStr();
-  let endDate = today;
-  let zeroCrossDate = null;
-  if(s.rate > 0){
-    const zeroCrossDays = s.anchor.value / s.rate;
-    const zd = addDays(s.anchor.date, zeroCrossDays);
-    const daysStartToZero = daysBetween(startDate, zd);
-    const daysStartToToday = daysBetween(startDate, today);
-    if(daysStartToZero > daysStartToToday && (daysStartToZero-daysStartToToday) <= 30){
-      endDate = zd; zeroCrossDate = zd;
-    }
-  }
-  const totalDays = Math.max(daysBetween(startDate, endDate), 1);
-  const maxVal = Math.max(...readings.map(r=>r.value), s.th.low*1.3, 10);
-  const W=480, H=180, padL=42, padR=16, padT=14, padB=26;
-  const chartW=W-padL-padR, chartH=H-padT-padB;
-  const xPos = d => padL + (daysBetween(startDate,d)/totalDays)*chartW;
-  const yPos = v => padT + (1-Math.min(v,maxVal)/maxVal)*chartH;
-
-  let svg = '';
-  [0, maxVal/2, maxVal].forEach(t=>{
-    const yy = yPos(t);
-    svg += '<line x1="'+padL+'" y1="'+yy+'" x2="'+(W-padR)+'" y2="'+yy+'" stroke="#E4E8DE" stroke-width="1"/>';
-    svg += '<text x="'+(padL-8)+'" y="'+(yy+3)+'" text-anchor="end" font-size="10" fill="#8B958A">'+Math.round(t)+'</text>';
-  });
-  [{v:s.th.low, color:'#C98A2C'},{v:s.th.crit, color:'#D8593F'}].forEach(t=>{
-    if(t.v <= maxVal){
-      const yy = yPos(t.v);
-      svg += '<line x1="'+padL+'" y1="'+yy+'" x2="'+(W-padR)+'" y2="'+yy+'" stroke="'+t.color+'" stroke-width="1" stroke-dasharray="3,3" opacity="0.65"/>';
-    }
-  });
-
-  const pts = readings.map(r=> xPos(r.date)+','+yPos(r.value)).join(' ');
-  svg += '<polyline points="'+pts+'" fill="none" stroke="#1F6F5C" stroke-width="2"/>';
-  readings.forEach(r=>{
-    svg += '<circle cx="'+xPos(r.date)+'" cy="'+yPos(r.value)+'" r="3.2" fill="#1F6F5C"/>';
-  });
-
-  if(daysBetween(s.anchor.date, today) > 0){
-    svg += '<line x1="'+xPos(s.anchor.date)+'" y1="'+yPos(s.anchor.value)+'" x2="'+xPos(today)+'" y2="'+yPos(s.projected)+'" stroke="#8B958A" stroke-width="1.6" stroke-dasharray="4,3"/>';
-    svg += '<circle cx="'+xPos(today)+'" cy="'+yPos(s.projected)+'" r="3.2" fill="#8B958A"/>';
-    if(zeroCrossDate){
-      svg += '<line x1="'+xPos(today)+'" y1="'+yPos(s.projected)+'" x2="'+xPos(zeroCrossDate)+'" y2="'+yPos(0)+'" stroke="#8B958A" stroke-width="1.6" stroke-dasharray="4,3"/>';
-    }
-  }
-
-  svg += '<text x="'+padL+'" y="'+(H-6)+'" font-size="10" fill="#8B958A">'+fmtDateShort(startDate)+'</text>';
-  svg += '<text x="'+(W-padR)+'" y="'+(H-6)+'" text-anchor="end" font-size="10" fill="#8B958A">'+fmtDateShort(endDate)+'</text>';
-
-  return '<svg viewBox="0 0 '+W+' '+H+'" style="width:100%;height:auto;display:block;">'+svg+'</svg>'+
-    '<div class="chart-caption">'+
-    '<span><span class="lg" style="width:8px;height:8px;border-radius:50%;background:#1F6F5C;"></span>logged</span>'+
-    '<span><span class="lg" style="width:10px;height:2px;background:#8B958A;"></span>estimated</span>'+
-    '<span><span class="lg" style="width:10px;height:2px;background:#C98A2C;"></span>low line</span>'+
-    '<span><span class="lg" style="width:10px;height:2px;background:#D8593F;"></span>critical line</span>'+
+  svg += '</svg>';
+  return svg;
+}
+function buildRingWithLabel(percent, status, size, strokeWidth, big){
+  const svg = buildRing(percent, status, size, strokeWidth);
+  const label = status==='nodata' ? '' : Math.round(percent)+'%';
+  const fontSize = big ? 24 : 13;
+  return '<div style="position:relative;width:'+size+'px;height:'+size+'px;flex-shrink:0;">'+svg+
+    (label ? '<div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-weight:600;font-size:'+fontSize+'px;color:var(--text-primary);">'+label+'</div>' : '')+
     '</div>';
+}
+
+function buildDetailPanel(meterId){
+  const s = getStats(meterId);
+  if(s.status === 'nodata'){
+    return '<p class="empty-note">No readings yet — log a balance to see the gauge.</p>';
+  }
+  const pct = ringPercent(meterId, s);
+  const ring = buildRingWithLabel(pct, s.status, 132, 14, true);
+  const finishText = expectedFinishText(s);
+  let html = '<div style="display:flex;gap:20px;align-items:center;flex-wrap:wrap;">';
+  html += ring;
+  html += '<div style="flex:1;min-width:170px;">';
+  html += '<div class="balance-value '+s.status+'" style="font-size:24px;">GH¢ '+fmt(s.projected)+'</div>';
+  html += '<div class="balance-caption">'+(finishText || 'Log another reading to estimate a finish date')+'</div>';
+  html += '<div class="balance-caption" style="margin-top:8px;">Using '+(s.usingAssumed ? 'your typical top-up pace' : 'this meter\'s own usage history')+' · ≈ GH¢ '+fmt(s.rate)+'/day</div>';
+  html += '<div class="balance-caption">Low below GH¢ '+fmt(s.th.low)+' · Critical below GH¢ '+fmt(s.th.crit)+'</div>';
+  html += '<div class="balance-caption">Gauge shows balance as a share of a typical GH¢ '+fmt(refAmountFor(meterId))+' top-up</div>';
+  html += '</div></div>';
+  return html;
 }
 
 function render(){
@@ -488,7 +476,8 @@ function render(){
     html += '    <span class="status-pill '+s.status+'">'+statusLabel(s.status)+'</span>';
     html += '  </div>';
 
-    html += '  <div class="balance-block">';
+    html += '  <div style="display:flex;gap:14px;align-items:center;">';
+    html += '  <div class="balance-block" style="flex:1;min-width:0;margin-bottom:0;">';
     if(s.status==='nodata'){
       html += '    <div class="balance-value nodata">No balance logged yet</div>';
     }else{
@@ -499,14 +488,15 @@ function render(){
       html += '    <div class="balance-caption">'+cap+'</div>';
       const dayText = s.status==='empty' ? '' : friendlyDays(s.daysRemaining);
       html += '    <div class="balance-phrase">'+phraseFor(s)+(dayText? ' ('+dayText+')':'')+'</div>';
+      const finishText = expectedFinishText(s);
+      if(finishText) html += '    <div class="balance-caption" style="margin-top:5px;">'+finishText+'</div>';
     }
     html += '  </div>';
-
     if(s.status !== 'nodata'){
-      const pct = Math.max(0, Math.min(100, (s.projected / Math.max(s.th.low*3,1))*100));
-      html += '  <div class="gauge-track"><div class="gauge-fill '+s.status+'" style="width:'+pct.toFixed(0)+'%"></div></div>';
-      html += buildSpark(s.readings);
+      const pct = ringPercent(m.id, s);
+      html += buildRingWithLabel(pct, s.status, 64, 8, false);
     }
+    html += '  </div>';
 
     html += '  <div class="entry-row">';
     html += '    <input type="number" step="0.01" placeholder="Just checked it? Enter balance" id="input-'+m.id+'">';
@@ -514,13 +504,13 @@ function render(){
     html += '  </div>';
 
     html += '  <div class="card-foot">';
-    html += '    <button class="link-btn" data-action="toggle-graph" data-id="'+m.id+'">'+(state.expandedGraph[m.id]?'Hide graph':'Graph')+'</button>';
+    html += '    <button class="link-btn" data-action="toggle-graph" data-id="'+m.id+'">'+(state.expandedGraph[m.id]?'Hide details':'Details')+'</button>';
     html += '    <button class="link-btn" data-action="toggle-history" data-id="'+m.id+'">'+(state.expandedHistory[m.id]?'Hide history':'History')+'</button>';
     html += '    <button class="link-btn" data-action="toggle-settings" data-id="'+m.id+'">'+(state.expandedSettings[m.id]?'Hide settings':'Settings')+'</button>';
     html += '  </div>';
 
     if(state.expandedGraph[m.id]){
-      html += '  <div class="panel">'+buildDetailedChart(m.id)+'</div>';
+      html += '  <div class="panel">'+buildDetailPanel(m.id)+'</div>';
     }
 
     if(state.expandedSettings[m.id]){
