@@ -214,7 +214,8 @@ const METERS = [
   {id:'auditorium', name:'Auditorium', number:'P6329318'},
   {id:'apartment-1', name:'Apartment 1', number:'0216510339031'},
   {id:'apartment-2', name:'Apartment 2', number:'0216510339056'},
-  {id:'apartment-3', name:'Apartment 3', number:'0216510339049'}
+  {id:'apartment-3', name:'Apartment 3', number:'0216510339049'},
+  {id:'victory', name:'Victory', number:'P243119249'}
 ];
 
 const STORAGE_KEY = 'meter-room-state-v2';
@@ -316,27 +317,6 @@ function getStats(meterId){
 }
 
 function statusRank(s){ return {empty:0, crit:1, low:2, ok:3, nodata:4}[s]; }
-
-async function registerServiceWorker(){
-  if('serviceWorker' in navigator){
-    try{ await navigator.serviceWorker.register('./sw.js'); }
-    catch(e){ console.error('service worker registration failed', e); }
-  }
-}
-
-async function fireNotification(title, body, tag){
-  if('serviceWorker' in navigator){
-    try{
-      const reg = await navigator.serviceWorker.ready;
-      await reg.showNotification(title, {body, tag});
-      return true;
-    }catch(e){ /* fall through to direct constructor */ }
-  }
-  try{
-    new Notification(title, {body, tag});
-    return true;
-  }catch(e){ return false; }
-}
 function fmt(n){ return (Math.round(n*100)/100).toLocaleString(); }
 function friendlyDays(d){
   const r = Math.round(d);
@@ -579,10 +559,7 @@ function attachHandlers(){
       try{
         const perm = await Notification.requestPermission();
         render();
-        if(perm==='granted'){
-          const ok = await fireNotification('Meter Room alerts are on', 'You\'ll hear from us here when a meter is running low or empty.', 'welcome');
-          if(!ok) alert('Alerts are allowed, but this device couldn\'t display one. Try the "Send test alert" button after reloading the page.');
-        }
+        if(perm==='granted') new Notification('Meter Room alerts are on', {body:'You\'ll hear from us here when a meter is running low or empty.'});
         else if(perm==='denied') alert('Your browser blocked the alert permission. Alerts can\'t reach you here — check the reminder banner in the app instead, or open this file directly in a browser tab rather than inside claude.ai.');
       }catch(e){
         alert('This browser or view doesn\'t allow notifications from Meter Room. The in-app reminder banner will still show you what needs attention every time you open the app.');
@@ -591,9 +568,12 @@ function attachHandlers(){
   }
   const testBtn = document.getElementById('test-notif');
   if(testBtn){
-    testBtn.addEventListener('click', async ()=>{
-      const ok = await fireNotification('Meter Room test alert', 'If you can see this, alerts are working on this device.', 'test');
-      if(!ok) alert('The test alert failed to fire — notifications aren\'t reliable in this browser/view. Try opening the downloaded HTML file directly in a normal browser tab instead of inside claude.ai, and check that site notifications are allowed in your browser and phone settings.');
+    testBtn.addEventListener('click', ()=>{
+      try{
+        new Notification('Meter Room test alert', {body:'If you can see this, alerts are working on this device.'});
+      }catch(e){
+        alert('The test alert failed to fire — notifications aren\'t reliable in this browser/view. Try opening the downloaded HTML file directly in a normal browser tab instead of inside claude.ai, and check that site notifications are allowed in your browser and phone settings.');
+      }
     });
   }
   document.querySelectorAll('[data-action="log"]').forEach(btn=> btn.addEventListener('click', ()=> logReading(btn.dataset.id)));
@@ -645,11 +625,11 @@ async function logReading(meterId){
   await saveState(); render(); checkAndNotify();
 }
 
-async function checkAndNotify(){
+function checkAndNotify(){
   if(!('Notification' in window) || Notification.permission!=='granted') return;
   const today = todayStr();
   let changed = false;
-  for(const m of METERS){
+  METERS.forEach(m=>{
     const s = getStats(m.id);
     if(s.status==='crit' || s.status==='empty' || s.status==='low'){
       const last = state.lastNotified[m.id];
@@ -658,17 +638,16 @@ async function checkAndNotify(){
         if(s.status==='empty') body = m.name+' has run out of credit.';
         else if(s.status==='crit') body = m.name+' is almost out (about GH¢ '+fmt(s.projected)+' left).';
         else body = m.name+' is running low (about GH¢ '+fmt(s.projected)+' left, '+friendlyDays(s.daysRemaining)+').';
-        await fireNotification('Meter Room', body, 'meter-'+m.id);
+        new Notification('Meter Room', {body, tag:'meter-'+m.id});
         state.lastNotified[m.id] = {date:today, status:s.status};
         changed = true;
       }
     }
-  }
+  });
   if(changed) saveState();
 }
 
 (async function init(){
-  await registerServiceWorker();
   await loadState();
   render();
   checkAndNotify();
@@ -677,25 +656,6 @@ async function checkAndNotify(){
     if(document.visibilityState === 'visible'){ render(); checkAndNotify(); }
   });
 })();
-  self.addEventListener('install', () => {
-  self.skipWaiting();
-});
-
-self.addEventListener('activate', (event) => {
-  event.waitUntil(self.clients.claim());
-});
-
-self.addEventListener('notificationclick', (event) => {
-  event.notification.close();
-  event.waitUntil(
-    self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clients) => {
-      for (const client of clients) {
-        if ('focus' in client) return client.focus();
-      }
-      if (self.clients.openWindow) return self.clients.openWindow('./');
-    })
-  );
-});
 </script>
 </body>
 </html>
