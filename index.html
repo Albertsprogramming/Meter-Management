@@ -1,0 +1,660 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Meter Room</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:wght@500;600&family=Work+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#F4F6F1;
+    --surface:#FFFFFF;
+    --surface-soft:#F0F3EC;
+    --line:#E4E8DE;
+    --line-strong:#D3D9C9;
+    --text-primary:#28312A;
+    --text-secondary:#5B6659;
+    --text-muted:#8B958A;
+    --teal:#1F6F5C;
+    --teal-soft:#E1EFE9;
+    --teal-text:#175747;
+    --amber:#C98A2C;
+    --amber-soft:#FBEDD8;
+    --amber-text:#8A5C15;
+    --coral:#D8593F;
+    --coral-soft:#FBE4DE;
+    --coral-text:#A23F29;
+    --grey-soft:#EDEEE9;
+    --shadow:0 1px 2px rgba(40,49,42,0.04), 0 4px 14px rgba(40,49,42,0.06);
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0;
+    background:var(--bg);
+    color:var(--text-primary);
+    font-family:'Work Sans',sans-serif;
+    -webkit-font-smoothing:antialiased;
+  }
+  .display{font-family:'Fraunces',serif;}
+  #app{max-width:1160px;margin:0 auto;padding:32px 22px 90px;}
+
+  header.top{
+    display:flex;justify-content:space-between;align-items:flex-end;gap:20px;
+    margin-bottom:22px;flex-wrap:wrap;
+  }
+  .brand{display:flex;align-items:center;gap:12px;}
+  .brand-icon{
+    width:42px;height:42px;border-radius:12px;background:var(--teal);
+    display:flex;align-items:center;justify-content:center;flex-shrink:0;
+  }
+  h1{font-size:26px;font-weight:600;margin:0;letter-spacing:-0.01em;}
+  .sub{font-size:13.5px;color:var(--text-secondary);margin:4px 0 0;max-width:480px;line-height:1.5;}
+
+  .notif-box{display:flex;flex-direction:column;align-items:flex-end;gap:6px;}
+  button{
+    font-family:'Work Sans',sans-serif;font-size:13.5px;font-weight:500;
+    cursor:pointer;border-radius:10px;transition:background 0.12s, border-color 0.12s, transform 0.08s;
+  }
+  button:active{transform:scale(0.98);}
+  .btn-primary{background:var(--teal);color:#fff;border:1px solid var(--teal);padding:10px 16px;}
+  .btn-primary:hover{background:#195c4c;}
+  .btn-ghost{background:var(--surface);color:var(--text-secondary);border:1px solid var(--line-strong);padding:7px 12px;font-size:12.5px;}
+  .btn-ghost:hover{border-color:var(--teal);color:var(--teal-text);}
+  .notif-status{font-size:11.5px;color:var(--text-muted);}
+
+  .assumption-bar{
+    background:var(--surface);border:1px solid var(--line);border-radius:14px;
+    padding:14px 18px;margin-bottom:22px;display:flex;align-items:center;gap:10px;
+    flex-wrap:wrap;font-size:13.5px;color:var(--text-secondary);box-shadow:var(--shadow);
+  }
+  .assumption-bar input{
+    width:64px;background:var(--surface-soft);border:1px solid var(--line-strong);
+    color:var(--text-primary);border-radius:8px;padding:6px 8px;font-family:'Work Sans',sans-serif;
+    font-size:13.5px;font-weight:500;text-align:center;
+  }
+  .assumption-bar input:focus{outline:none;border-color:var(--teal);}
+  .assumption-bar .rate-note{color:var(--text-muted);font-size:12px;margin-left:auto;}
+
+  .reminder-banner{
+    display:flex;align-items:center;gap:12px;background:var(--coral-soft);
+    border:1px solid #F0C4B8;border-radius:14px;padding:13px 18px;margin-bottom:18px;
+  }
+  .reminder-banner svg{width:18px;height:18px;flex-shrink:0;color:var(--coral-text);}
+  .reminder-banner .rb-text{font-size:13px;color:var(--coral-text);line-height:1.5;}
+  .reminder-banner .rb-text b{font-weight:600;}
+  .chart-caption{display:flex;gap:14px;margin-top:6px;font-size:11px;color:var(--text-muted);align-items:center;}
+  .chart-caption .lg{display:inline-block;margin-right:4px;vertical-align:middle;}
+
+  .summary-strip{display:flex;gap:10px;margin-bottom:22px;flex-wrap:wrap;}
+  .sum-chip{
+    display:flex;align-items:center;gap:8px;background:var(--surface);
+    border:1px solid var(--line);border-radius:12px;padding:10px 16px;box-shadow:var(--shadow);
+  }
+  .sum-chip .dot{width:8px;height:8px;border-radius:50%;flex-shrink:0;}
+  .sum-chip .n{font-size:16px;font-weight:600;}
+  .sum-chip .l{font-size:12px;color:var(--text-muted);}
+  .dot.crit{background:var(--coral);}
+  .dot.low{background:var(--amber);}
+  .dot.ok{background:var(--teal);}
+  .dot.nodata{background:#BFC7B8;}
+
+  .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:16px;}
+
+  .card{
+    background:var(--surface);border:1px solid var(--line);border-radius:16px;
+    padding:18px 18px 16px;box-shadow:var(--shadow);position:relative;
+  }
+  .card.crit{border-color:#F0C4B8;}
+  .card.low{border-color:#F0DCB0;}
+
+  .card-head{display:flex;gap:12px;align-items:flex-start;margin-bottom:14px;}
+  .icon-badge{
+    width:38px;height:38px;border-radius:10px;background:var(--surface-soft);
+    display:flex;align-items:center;justify-content:center;flex-shrink:0;color:var(--teal-text);
+  }
+  .icon-badge svg{width:19px;height:19px;}
+  .icon-badge.crit{background:var(--coral-soft);color:var(--coral-text);}
+  .icon-badge.low{background:var(--amber-soft);color:var(--amber-text);}
+  .card-titles{flex:1;min-width:0;}
+  .card-name{font-size:15px;font-weight:600;margin:0;}
+  .card-number{font-size:11px;color:var(--text-muted);margin:2px 0 0;}
+
+  .status-pill{
+    font-size:11px;font-weight:600;padding:4px 10px;border-radius:20px;white-space:nowrap;
+  }
+  .status-pill.ok{background:var(--teal-soft);color:var(--teal-text);}
+  .status-pill.low{background:var(--amber-soft);color:var(--amber-text);}
+  .status-pill.crit,.status-pill.empty{background:var(--coral-soft);color:var(--coral-text);}
+  .status-pill.nodata{background:var(--grey-soft);color:var(--text-muted);}
+
+  .balance-block{margin-bottom:12px;}
+  .balance-value{font-family:'Fraunces',serif;font-size:30px;font-weight:600;line-height:1.1;}
+  .balance-value.ok{color:var(--teal-text);}
+  .balance-value.low{color:var(--amber-text);}
+  .balance-value.crit,.balance-value.empty{color:var(--coral-text);}
+  .balance-value.nodata{color:var(--text-muted);font-size:16px;font-family:'Work Sans',sans-serif;font-weight:500;}
+  .balance-caption{font-size:12px;color:var(--text-muted);margin-top:2px;}
+  .balance-phrase{font-size:13px;color:var(--text-secondary);margin-top:5px;}
+
+  .gauge-track{height:6px;background:var(--surface-soft);border-radius:4px;overflow:hidden;margin-bottom:14px;}
+  .gauge-fill{height:100%;border-radius:4px;transition:width 0.3s;}
+  .gauge-fill.ok{background:var(--teal);}
+  .gauge-fill.low{background:var(--amber);}
+  .gauge-fill.crit,.gauge-fill.empty{background:var(--coral);}
+
+  .entry-row{display:flex;gap:8px;margin-bottom:10px;}
+  .entry-row input[type=number]{
+    flex:1;min-width:0;background:var(--surface-soft);border:1px solid var(--line-strong);
+    color:var(--text-primary);border-radius:10px;padding:9px 12px;font-family:'Work Sans',sans-serif;
+    font-size:13.5px;
+  }
+  .entry-row input[type=number]:focus{outline:none;border-color:var(--teal);}
+  .entry-row button{padding:9px 14px;}
+
+  .card-foot{display:flex;gap:16px;align-items:center;flex-wrap:wrap;}
+  .link-btn{
+    background:none;border:none;color:var(--text-muted);font-size:12px;padding:0;
+    text-decoration:underline;text-underline-offset:2px;
+  }
+  .link-btn:hover{color:var(--teal-text);}
+
+  .panel{margin-top:12px;border-top:1px solid var(--line);padding-top:12px;}
+  .history-row{display:flex;justify-content:space-between;align-items:center;font-size:12.5px;padding:4px 0;color:var(--text-secondary);}
+  .history-row .del{color:var(--text-muted);cursor:pointer;font-size:11.5px;border:none;background:none;}
+  .history-row .del:hover{color:var(--coral-text);}
+
+  .settings-grid{display:flex;flex-wrap:wrap;gap:10px 16px;font-size:12px;color:var(--text-secondary);align-items:center;}
+  .settings-grid label{display:flex;flex-direction:column;gap:4px;}
+  .settings-grid input{
+    width:64px;background:var(--surface-soft);border:1px solid var(--line-strong);
+    color:var(--text-primary);border-radius:8px;padding:5px 8px;font-family:'Work Sans',sans-serif;font-size:12.5px;
+  }
+  .settings-grid button{margin-top:16px;}
+
+  .empty-note{font-size:12px;color:var(--text-muted);margin-bottom:8px;}
+
+  footer{margin-top:34px;padding-top:16px;border-top:1px solid var(--line);font-size:12px;color:var(--text-muted);line-height:1.6;}
+</style>
+</head>
+<body>
+<div id="app"><p style="color:var(--text-muted);padding:40px;">Loading meters…</p></div>
+
+<script>
+const ICONS = {
+  house: '<path d="M3 10.5 12 3l9 7.5" stroke="currentColor" stroke-width="1.7" fill="none" stroke-linecap="round" stroke-linejoin="round"/><path d="M5 9.5V20a1 1 0 0 0 1 1h4v-6h4v6h4a1 1 0 0 0 1-1V9.5" stroke="currentColor" stroke-width="1.7" fill="none" stroke-linecap="round" stroke-linejoin="round"/>',
+  office: '<rect x="4" y="7" width="16" height="13" rx="1.2" stroke="currentColor" stroke-width="1.7" fill="none"/><path d="M9 7V5.2A1.2 1.2 0 0 1 10.2 4h3.6A1.2 1.2 0 0 1 15 5.2V7" stroke="currentColor" stroke-width="1.7" fill="none" stroke-linecap="round"/><path d="M4 12.5h16" stroke="currentColor" stroke-width="1.7"/>',
+  pump: '<path d="M12 21c4-4 6-7 6-10a6 6 0 1 0-12 0c0 3 2 6 6 10Z" stroke="currentColor" stroke-width="1.7" fill="none" stroke-linejoin="round"/>',
+  car: '<path d="M4 16v-3.2a1 1 0 0 1 .7-1L6.5 8.4A2 2 0 0 1 8.4 7h7.2a2 2 0 0 1 1.9 1.4l1.8 3.4A1 1 0 0 1 20 12v4" stroke="currentColor" stroke-width="1.7" fill="none" stroke-linecap="round" stroke-linejoin="round"/><path d="M4 16h16v2a1 1 0 0 1-1 1h-1a1 1 0 0 1-1-1v-1H7v1a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1v-2Z" stroke="currentColor" stroke-width="1.7" fill="none" stroke-linejoin="round"/><circle cx="7.5" cy="16" r="0.4" fill="currentColor"/><circle cx="16.5" cy="16" r="0.4" fill="currentColor"/>',
+  building: '<rect x="5" y="3.5" width="14" height="17" rx="1.2" stroke="currentColor" stroke-width="1.7" fill="none"/><path d="M8.5 7.5h1.4M13.5 7.5h1.4M8.5 11h1.4M13.5 11h1.4M8.5 14.5h1.4M13.5 14.5h1.4" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/><path d="M10 20.5v-3.2a2 2 0 0 1 4 0v3.2" stroke="currentColor" stroke-width="1.7" fill="none"/>',
+  spotlight: '<path d="M6 4 18 9l-1.6 3.9L4.4 7.9 6 4Z" stroke="currentColor" stroke-width="1.7" fill="none" stroke-linejoin="round"/><path d="M12.8 11.5 9 20.5" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/><circle cx="9" cy="20.7" r="1" fill="currentColor"/>'
+};
+function iconFor(name){
+  const n = name.toLowerCase();
+  if(n.includes('office')) return ICONS.office;
+  if(n.includes('pump')) return ICONS.pump;
+  if(n.includes('car park')) return ICONS.car;
+  if(n.includes('auditorium')) return ICONS.spotlight;
+  if(n.includes('apartment')) return ICONS.building;
+  return ICONS.house;
+}
+
+const METERS = [
+  {id:'chalet', name:'Chalet', number:'0216510338983'},
+  {id:'chairman-house', name:'Chairman House', number:'P161113679'},
+  {id:'daddys-office', name:"Daddy's Office", number:'P8316266'},
+  {id:'pumping-machine', name:'Pumping Machine', number:'P6330912'},
+  {id:'furgerson', name:'Furgerson', number:'P161128767'},
+  {id:'daddy-house', name:'Daddy House', number:'P6326986'},
+  {id:'efie-kessie', name:'Efie Kessie', number:'0216412485759'},
+  {id:'salem', name:'Salem', number:'P6329232'},
+  {id:'new-car-park', name:'New Car Park', number:'O216412626543'},
+  {id:'mensah', name:'Mensah', number:'0216510252515'},
+  {id:'auditorium', name:'Auditorium', number:'P6329318'},
+  {id:'apartment-1', name:'Apartment 1', number:'0216510339031'},
+  {id:'apartment-2', name:'Apartment 2', number:'0216510339056'},
+  {id:'apartment-3', name:'Apartment 3', number:'0216510339049'}
+];
+
+const STORAGE_KEY = 'meter-room-state-v2';
+const DEFAULT_LOW = 60;
+const DEFAULT_CRIT = 20;
+const LOW_DAYS = 5;
+const CRIT_DAYS = 2;
+
+let state = {
+  readings: {},
+  thresholds: {},
+  meterAssumption: {},
+  globalAssumption: {amount: 300, days: 7},
+  lastNotified: {},
+  expandedHistory: {},
+  expandedSettings: {},
+  expandedGraph: {}
+};
+
+function todayStr(){ return new Date().toISOString().slice(0,10); }
+function daysBetween(a,b){ return Math.max((new Date(b)-new Date(a))/86400000, 0); }
+
+async function storageGet(key){
+  if(typeof window.storage !== 'undefined' && window.storage){
+    try{ const res = await window.storage.get(key, false); if(res) return res; }
+    catch(e){}
+  }
+  try{
+    const raw = localStorage.getItem(key);
+    return raw ? {key, value: raw} : null;
+  }catch(e){ return null; }
+}
+async function storageSet(key, value){
+  if(typeof window.storage !== 'undefined' && window.storage){
+    try{ await window.storage.set(key, value, false); }catch(e){}
+  }
+  try{ localStorage.setItem(key, value); }catch(e){ console.error('local save failed', e); }
+}
+
+async function loadState(){
+  try{
+    const res = await storageGet(STORAGE_KEY);
+    if(res && res.value){
+      const parsed = JSON.parse(res.value);
+      state = Object.assign(state, parsed);
+    }
+  }catch(e){}
+  METERS.forEach(m=>{
+    if(!state.readings[m.id]) state.readings[m.id] = [];
+    if(state.thresholds[m.id] === undefined) state.thresholds[m.id] = {low: DEFAULT_LOW, crit: DEFAULT_CRIT};
+  });
+}
+async function saveState(){
+  try{ await storageSet(STORAGE_KEY, JSON.stringify(state)); }
+  catch(e){ console.error('save failed', e); }
+}
+
+function globalRate(){ return state.globalAssumption.amount / state.globalAssumption.days; }
+function assumedRateFor(meterId){
+  const ov = state.meterAssumption[meterId];
+  if(ov && ov.amount > 0 && ov.days > 0) return ov.amount / ov.days;
+  return globalRate();
+}
+
+function getStats(meterId){
+  const readings = [...state.readings[meterId]].sort((a,b)=> a.date < b.date ? -1 : 1);
+  const th = state.thresholds[meterId] || {low: DEFAULT_LOW, crit: DEFAULT_CRIT};
+  if(readings.length === 0){
+    return {status:'nodata', readings, anchor:null, projected:null, daysRemaining:null, rate:assumedRateFor(meterId), usingAssumed:true, th};
+  }
+  const anchor = readings[readings.length-1];
+  let cycleStart = 0;
+  for(let i=readings.length-1;i>0;i--){
+    if(readings[i].value > readings[i-1].value){ cycleStart = i; break; }
+  }
+  const cycle = readings.slice(cycleStart);
+  let learnedRate = null;
+  if(cycle.length >= 2){
+    const first = cycle[0], last = cycle[cycle.length-1];
+    const drop = first.value - last.value;
+    const span = daysBetween(first.date, last.date);
+    if(drop > 0 && span > 0) learnedRate = drop / span;
+  }
+  const usingAssumed = learnedRate === null;
+  const rate = usingAssumed ? assumedRateFor(meterId) : learnedRate;
+
+  const daysSinceAnchor = daysBetween(anchor.date, todayStr());
+  let projected = anchor.value - rate * daysSinceAnchor;
+  const confirmedEmpty = anchor.value <= 0;
+  projected = Math.max(projected, 0);
+  const daysRemaining = rate > 0 ? projected / rate : null;
+
+  let status = 'ok';
+  if(confirmedEmpty || projected <= 0.01){ status = 'empty'; }
+  else if(projected <= th.crit || (daysRemaining !== null && daysRemaining <= CRIT_DAYS)) status = 'crit';
+  else if(projected <= th.low || (daysRemaining !== null && daysRemaining <= LOW_DAYS)) status = 'low';
+
+  return {status, readings, anchor, projected, daysRemaining, rate, usingAssumed, confirmedEmpty, th};
+}
+
+function statusRank(s){ return {empty:0, crit:1, low:2, ok:3, nodata:4}[s]; }
+function fmt(n){ return (Math.round(n*100)/100).toLocaleString(); }
+function friendlyDays(d){
+  const r = Math.round(d);
+  if(r <= 0) return 'due to run out today';
+  if(r === 1) return 'about 1 day left';
+  return 'about '+r+' days left';
+}
+function phraseFor(s){
+  return {
+    ok: 'Plenty of power.',
+    low: 'Getting low — worth topping up soon.',
+    crit: 'Almost out — top up now.',
+    empty: 'Out of credit.',
+    nodata: 'Log a balance to start tracking.'
+  }[s.status];
+}
+
+function buildSpark(readings){
+  if(readings.length < 2) return '';
+  const last = readings.slice(-14);
+  const w = 240, h = 32, pad = 3;
+  const vals = last.map(r=>r.value);
+  const min = Math.min(...vals), max = Math.max(...vals);
+  const range = (max-min) || 1;
+  const pts = last.map((r,i)=>{
+    const x = pad + (i/(last.length-1)) * (w-pad*2);
+    const y = h-pad - ((r.value-min)/range)*(h-pad*2);
+    return x.toFixed(1)+','+y.toFixed(1);
+  }).join(' ');
+  return '<svg width="'+w+'" height="'+h+'" viewBox="0 0 '+w+' '+h+'" style="display:block;margin-bottom:12px;"><polyline points="'+pts+'" fill="none" stroke="#B9C6B2" stroke-width="1.6"/></svg>';
+}
+
+function statusLabel(s){ return {ok:'Healthy', low:'Low', crit:'Critical', empty:'Empty', nodata:'No data'}[s]; }
+
+function addDays(dateStr, days){
+  const d = new Date(dateStr);
+  d.setTime(d.getTime() + days*86400000);
+  return d.toISOString().slice(0,10);
+}
+function fmtDateShort(d){
+  return new Date(d).toLocaleDateString('en-GB',{day:'numeric', month:'short'});
+}
+
+function buildDetailedChart(meterId){
+  const s = getStats(meterId);
+  const readings = s.readings;
+  if(readings.length === 0){
+    return '<p class="empty-note">No readings yet — log a balance to start the graph.</p>';
+  }
+  const startDate = readings[0].date;
+  const today = todayStr();
+  let endDate = today;
+  let zeroCrossDate = null;
+  if(s.rate > 0){
+    const zeroCrossDays = s.anchor.value / s.rate;
+    const zd = addDays(s.anchor.date, zeroCrossDays);
+    const daysStartToZero = daysBetween(startDate, zd);
+    const daysStartToToday = daysBetween(startDate, today);
+    if(daysStartToZero > daysStartToToday && (daysStartToZero-daysStartToToday) <= 30){
+      endDate = zd; zeroCrossDate = zd;
+    }
+  }
+  const totalDays = Math.max(daysBetween(startDate, endDate), 1);
+  const maxVal = Math.max(...readings.map(r=>r.value), s.th.low*1.3, 10);
+  const W=480, H=180, padL=42, padR=16, padT=14, padB=26;
+  const chartW=W-padL-padR, chartH=H-padT-padB;
+  const xPos = d => padL + (daysBetween(startDate,d)/totalDays)*chartW;
+  const yPos = v => padT + (1-Math.min(v,maxVal)/maxVal)*chartH;
+
+  let svg = '';
+  [0, maxVal/2, maxVal].forEach(t=>{
+    const yy = yPos(t);
+    svg += '<line x1="'+padL+'" y1="'+yy+'" x2="'+(W-padR)+'" y2="'+yy+'" stroke="#E4E8DE" stroke-width="1"/>';
+    svg += '<text x="'+(padL-8)+'" y="'+(yy+3)+'" text-anchor="end" font-size="10" fill="#8B958A">'+Math.round(t)+'</text>';
+  });
+  [{v:s.th.low, color:'#C98A2C'},{v:s.th.crit, color:'#D8593F'}].forEach(t=>{
+    if(t.v <= maxVal){
+      const yy = yPos(t.v);
+      svg += '<line x1="'+padL+'" y1="'+yy+'" x2="'+(W-padR)+'" y2="'+yy+'" stroke="'+t.color+'" stroke-width="1" stroke-dasharray="3,3" opacity="0.65"/>';
+    }
+  });
+
+  const pts = readings.map(r=> xPos(r.date)+','+yPos(r.value)).join(' ');
+  svg += '<polyline points="'+pts+'" fill="none" stroke="#1F6F5C" stroke-width="2"/>';
+  readings.forEach(r=>{
+    svg += '<circle cx="'+xPos(r.date)+'" cy="'+yPos(r.value)+'" r="3.2" fill="#1F6F5C"/>';
+  });
+
+  if(daysBetween(s.anchor.date, today) > 0){
+    svg += '<line x1="'+xPos(s.anchor.date)+'" y1="'+yPos(s.anchor.value)+'" x2="'+xPos(today)+'" y2="'+yPos(s.projected)+'" stroke="#8B958A" stroke-width="1.6" stroke-dasharray="4,3"/>';
+    svg += '<circle cx="'+xPos(today)+'" cy="'+yPos(s.projected)+'" r="3.2" fill="#8B958A"/>';
+    if(zeroCrossDate){
+      svg += '<line x1="'+xPos(today)+'" y1="'+yPos(s.projected)+'" x2="'+xPos(zeroCrossDate)+'" y2="'+yPos(0)+'" stroke="#8B958A" stroke-width="1.6" stroke-dasharray="4,3"/>';
+    }
+  }
+
+  svg += '<text x="'+padL+'" y="'+(H-6)+'" font-size="10" fill="#8B958A">'+fmtDateShort(startDate)+'</text>';
+  svg += '<text x="'+(W-padR)+'" y="'+(H-6)+'" text-anchor="end" font-size="10" fill="#8B958A">'+fmtDateShort(endDate)+'</text>';
+
+  return '<svg viewBox="0 0 '+W+' '+H+'" style="width:100%;height:auto;display:block;">'+svg+'</svg>'+
+    '<div class="chart-caption">'+
+    '<span><span class="lg" style="width:8px;height:8px;border-radius:50%;background:#1F6F5C;"></span>logged</span>'+
+    '<span><span class="lg" style="width:10px;height:2px;background:#8B958A;"></span>estimated</span>'+
+    '<span><span class="lg" style="width:10px;height:2px;background:#C98A2C;"></span>low line</span>'+
+    '<span><span class="lg" style="width:10px;height:2px;background:#D8593F;"></span>critical line</span>'+
+    '</div>';
+}
+
+function render(){
+  const app = document.getElementById('app');
+  const stats = {};
+  METERS.forEach(m=> stats[m.id] = getStats(m.id));
+  const counts = {ok:0, low:0, crit:0, empty:0, nodata:0};
+  METERS.forEach(m=> counts[stats[m.id].status]++);
+  const sorted = [...METERS].sort((a,b)=> statusRank(stats[a.id].status) - statusRank(stats[b.id].status));
+
+  const notifSupported = 'Notification' in window;
+  const notifPerm = notifSupported ? Notification.permission : 'unsupported';
+
+  let html = '';
+  html += '<header class="top">';
+  html += '  <div class="brand"><div class="brand-icon"><svg width="20" height="20" viewBox="0 0 24 24"><path d="M13 2 4 14h6l-1 8 9-12h-6l1-8Z" fill="#fff"/></svg></div>';
+  html += '  <div><h1 class="display">Meter Room</h1><p class="sub">A calm way to keep every meter topped up — Meter Room estimates today\'s balance for you, even on days you don\'t check.</p></div></div>';
+  html += '  <div class="notif-box">';
+  if(notifSupported && notifPerm !== 'granted') html += '    <button class="btn-primary" id="enable-notif">Turn on alerts</button>';
+  if(notifSupported && notifPerm === 'granted') html += '    <button class="btn-ghost" id="test-notif">Send test alert</button>';
+  const notifText = !notifSupported ? 'Alerts aren\'t supported here'
+    : notifPerm === 'granted' ? 'Alerts on — keep this open or installed'
+    : notifPerm === 'denied' ? 'Alerts blocked in browser settings'
+    : 'Alerts are off';
+  html += '    <span class="notif-status">'+notifText+'</span></div>';
+  html += '</header>';
+
+  html += '<div class="assumption-bar">';
+  html += '  <span>By default, a top-up of</span>';
+  html += '  <input type="number" id="global-amount" value="'+state.globalAssumption.amount+'">';
+  html += '  <span>cedis lasts about</span>';
+  html += '  <input type="number" id="global-days" value="'+state.globalAssumption.days+'">';
+  html += '  <span>days</span>';
+  html += '  <button class="btn-ghost" data-action="save-global">Save</button>';
+  html += '  <span class="rate-note">≈ GH¢ '+fmt(globalRate())+'/day, until a meter has enough of its own history</span>';
+  html += '</div>';
+
+  const urgent = sorted.filter(m=> ['crit','empty','low'].includes(stats[m.id].status));
+  if(urgent.length > 0){
+    const items = urgent.map(m=> m.name+' ('+statusLabel(stats[m.id].status)+')').join(', ');
+    html += '<div class="reminder-banner">';
+    html += '  <svg viewBox="0 0 24 24" fill="none"><path d="M12 3 2 20h20L12 3Z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/><path d="M12 10v4.5" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/><circle cx="12" cy="17.2" r="0.9" fill="currentColor"/></svg>';
+    html += '  <p class="rb-text"><b>'+urgent.length+' meter'+(urgent.length===1?'':'s')+' need'+(urgent.length===1?'s':'')+' topping up:</b> '+items+'</p>';
+    html += '</div>';
+  }
+
+  html += '<div class="summary-strip">';
+  html += '  <div class="sum-chip"><span class="dot crit"></span><span class="n">'+(counts.crit+counts.empty)+'</span><span class="l">need attention</span></div>';
+  html += '  <div class="sum-chip"><span class="dot low"></span><span class="n">'+counts.low+'</span><span class="l">running low</span></div>';
+  html += '  <div class="sum-chip"><span class="dot ok"></span><span class="n">'+counts.ok+'</span><span class="l">healthy</span></div>';
+  if(counts.nodata>0) html += '  <div class="sum-chip"><span class="dot nodata"></span><span class="n">'+counts.nodata+'</span><span class="l">not started yet</span></div>';
+  html += '</div>';
+
+  html += '<div class="grid">';
+  sorted.forEach(m=>{
+    const s = stats[m.id];
+    const badgeClass = (s.status==='crit'||s.status==='empty') ? 'crit' : (s.status==='low' ? 'low' : '');
+    const cardClass = badgeClass;
+    html += '<div class="card '+cardClass+'" data-id="'+m.id+'">';
+    html += '  <div class="card-head">';
+    html += '    <div class="icon-badge '+badgeClass+'"><svg viewBox="0 0 24 24">'+iconFor(m.name)+'</svg></div>';
+    html += '    <div class="card-titles"><p class="card-name">'+m.name+'</p><p class="card-number">'+m.number+'</p></div>';
+    html += '    <span class="status-pill '+s.status+'">'+statusLabel(s.status)+'</span>';
+    html += '  </div>';
+
+    html += '  <div class="balance-block">';
+    if(s.status==='nodata'){
+      html += '    <div class="balance-value nodata">No balance logged yet</div>';
+    }else{
+      html += '    <div class="balance-value '+s.status+'">GH¢ '+fmt(s.projected)+'</div>';
+      let cap = 'last confirmed GH¢ '+fmt(s.anchor.value)+' on '+s.anchor.date;
+      if(s.usingAssumed) cap += ' · using your typical top-up pace';
+      else cap += ' · calculated from this meter\'s own usage';
+      html += '    <div class="balance-caption">'+cap+'</div>';
+      const dayText = s.status==='empty' ? '' : friendlyDays(s.daysRemaining);
+      html += '    <div class="balance-phrase">'+phraseFor(s)+(dayText? ' ('+dayText+')':'')+'</div>';
+    }
+    html += '  </div>';
+
+    if(s.status !== 'nodata'){
+      const pct = Math.max(0, Math.min(100, (s.projected / Math.max(s.th.low*3,1))*100));
+      html += '  <div class="gauge-track"><div class="gauge-fill '+s.status+'" style="width:'+pct.toFixed(0)+'%"></div></div>';
+      html += buildSpark(s.readings);
+    }
+
+    html += '  <div class="entry-row">';
+    html += '    <input type="number" step="0.01" placeholder="Just checked it? Enter balance" id="input-'+m.id+'">';
+    html += '    <button class="btn-primary" data-action="log" data-id="'+m.id+'">Log</button>';
+    html += '  </div>';
+
+    html += '  <div class="card-foot">';
+    html += '    <button class="link-btn" data-action="toggle-graph" data-id="'+m.id+'">'+(state.expandedGraph[m.id]?'Hide graph':'Graph')+'</button>';
+    html += '    <button class="link-btn" data-action="toggle-history" data-id="'+m.id+'">'+(state.expandedHistory[m.id]?'Hide history':'History')+'</button>';
+    html += '    <button class="link-btn" data-action="toggle-settings" data-id="'+m.id+'">'+(state.expandedSettings[m.id]?'Hide settings':'Settings')+'</button>';
+    html += '  </div>';
+
+    if(state.expandedGraph[m.id]){
+      html += '  <div class="panel">'+buildDetailedChart(m.id)+'</div>';
+    }
+
+    if(state.expandedSettings[m.id]){
+      const ov = state.meterAssumption[m.id] || {};
+      html += '  <div class="panel"><div class="settings-grid">';
+      html += '    <label>Low below<input type="number" id="low-'+m.id+'" value="'+s.th.low+'"></label>';
+      html += '    <label>Critical below<input type="number" id="crit-'+m.id+'" value="'+s.th.crit+'"></label>';
+      html += '    <label>This meter\'s top-up<input type="number" id="amt-'+m.id+'" placeholder="'+state.globalAssumption.amount+'" value="'+(ov.amount||'')+'"></label>';
+      html += '    <label>Lasts (days)<input type="number" id="days-'+m.id+'" placeholder="'+state.globalAssumption.days+'" value="'+(ov.days||'')+'"></label>';
+      html += '    <button class="btn-ghost" data-action="save-settings" data-id="'+m.id+'">Save</button>';
+      html += '  </div></div>';
+    }
+
+    if(state.expandedHistory[m.id]){
+      html += '  <div class="panel">';
+      if(s.readings.length===0) html += '    <p class="empty-note">No readings yet.</p>';
+      else [...s.readings].reverse().slice(0,10).forEach(r=>{
+        html += '    <div class="history-row"><span>'+r.date+'</span><span>GH¢ '+fmt(r.value)+'</span><button class="del" data-action="delete-reading" data-id="'+m.id+'" data-date="'+r.date+'">remove</button></div>';
+      });
+      html += '  </div>';
+    }
+    html += '</div>';
+  });
+  html += '</div>';
+
+  html += '<footer>There\'s no way to pull prepaid balances automatically from ECG or PDS, so Meter Room works from what you tell it: it takes your last confirmed reading and counts down using either that meter\'s own usage history, or your typical top-up pace, until you log again. Log readings whenever you check a meter to keep the estimate sharp. Alerts only reach you while this page is open in your browser or installed to your home screen.</footer>';
+
+  app.innerHTML = html;
+  attachHandlers();
+}
+
+function attachHandlers(){
+  const enableBtn = document.getElementById('enable-notif');
+  if(enableBtn){
+    enableBtn.addEventListener('click', async ()=>{
+      try{
+        const perm = await Notification.requestPermission();
+        render();
+        if(perm==='granted') new Notification('Meter Room alerts are on', {body:'You\'ll hear from us here when a meter is running low or empty.'});
+        else if(perm==='denied') alert('Your browser blocked the alert permission. Alerts can\'t reach you here — check the reminder banner in the app instead, or open this file directly in a browser tab rather than inside claude.ai.');
+      }catch(e){
+        alert('This browser or view doesn\'t allow notifications from Meter Room. The in-app reminder banner will still show you what needs attention every time you open the app.');
+      }
+    });
+  }
+  const testBtn = document.getElementById('test-notif');
+  if(testBtn){
+    testBtn.addEventListener('click', ()=>{
+      try{
+        new Notification('Meter Room test alert', {body:'If you can see this, alerts are working on this device.'});
+      }catch(e){
+        alert('The test alert failed to fire — notifications aren\'t reliable in this browser/view. Try opening the downloaded HTML file directly in a normal browser tab instead of inside claude.ai, and check that site notifications are allowed in your browser and phone settings.');
+      }
+    });
+  }
+  document.querySelectorAll('[data-action="log"]').forEach(btn=> btn.addEventListener('click', ()=> logReading(btn.dataset.id)));
+  document.querySelectorAll('input[id^="input-"]').forEach(inp=>{
+    inp.addEventListener('keydown', e=>{ if(e.key==='Enter') logReading(inp.id.replace('input-','')); });
+  });
+  document.querySelectorAll('[data-action="toggle-graph"]').forEach(btn=> btn.addEventListener('click', ()=>{
+    state.expandedGraph[btn.dataset.id] = !state.expandedGraph[btn.dataset.id]; render();
+  }));
+  document.querySelectorAll('[data-action="toggle-history"]').forEach(btn=> btn.addEventListener('click', ()=>{
+    state.expandedHistory[btn.dataset.id] = !state.expandedHistory[btn.dataset.id]; render();
+  }));
+  document.querySelectorAll('[data-action="toggle-settings"]').forEach(btn=> btn.addEventListener('click', ()=>{
+    state.expandedSettings[btn.dataset.id] = !state.expandedSettings[btn.dataset.id]; render();
+  }));
+  document.querySelectorAll('[data-action="save-settings"]').forEach(btn=> btn.addEventListener('click', async ()=>{
+    const id = btn.dataset.id;
+    const low = parseFloat(document.getElementById('low-'+id).value) || DEFAULT_LOW;
+    const crit = parseFloat(document.getElementById('crit-'+id).value) || DEFAULT_CRIT;
+    const amt = parseFloat(document.getElementById('amt-'+id).value);
+    const days = parseFloat(document.getElementById('days-'+id).value);
+    state.thresholds[id] = {low, crit};
+    if(amt>0 && days>0) state.meterAssumption[id] = {amount:amt, days:days};
+    else delete state.meterAssumption[id];
+    await saveState(); render();
+  }));
+  document.querySelectorAll('[data-action="delete-reading"]').forEach(btn=> btn.addEventListener('click', async ()=>{
+    const id = btn.dataset.id, date = btn.dataset.date;
+    state.readings[id] = state.readings[id].filter(r=> r.date!==date);
+    await saveState(); render();
+  }));
+  const saveGlobal = document.querySelector('[data-action="save-global"]');
+  if(saveGlobal) saveGlobal.addEventListener('click', async ()=>{
+    const amt = parseFloat(document.getElementById('global-amount').value);
+    const days = parseFloat(document.getElementById('global-days').value);
+    if(amt>0 && days>0) state.globalAssumption = {amount:amt, days:days};
+    await saveState(); render();
+  });
+}
+
+async function logReading(meterId){
+  const input = document.getElementById('input-'+meterId);
+  const value = parseFloat(input.value);
+  if(isNaN(value) || value<0) return;
+  const today = todayStr();
+  const list = state.readings[meterId];
+  const idx = list.findIndex(r=> r.date===today);
+  if(idx>=0) list[idx].value = value; else list.push({date:today, value});
+  await saveState(); render(); checkAndNotify();
+}
+
+function checkAndNotify(){
+  if(!('Notification' in window) || Notification.permission!=='granted') return;
+  const today = todayStr();
+  let changed = false;
+  METERS.forEach(m=>{
+    const s = getStats(m.id);
+    if(s.status==='crit' || s.status==='empty' || s.status==='low'){
+      const last = state.lastNotified[m.id];
+      if(!last || last.date!==today || last.status!==s.status){
+        let body;
+        if(s.status==='empty') body = m.name+' has run out of credit.';
+        else if(s.status==='crit') body = m.name+' is almost out (about GH¢ '+fmt(s.projected)+' left).';
+        else body = m.name+' is running low (about GH¢ '+fmt(s.projected)+' left, '+friendlyDays(s.daysRemaining)+').';
+        new Notification('Meter Room', {body, tag:'meter-'+m.id});
+        state.lastNotified[m.id] = {date:today, status:s.status};
+        changed = true;
+      }
+    }
+  });
+  if(changed) saveState();
+}
+
+(async function init(){
+  await loadState();
+  render();
+  checkAndNotify();
+  setInterval(()=>{ render(); checkAndNotify(); }, 15*60*1000);
+  document.addEventListener('visibilitychange', ()=>{
+    if(document.visibilityState === 'visible'){ render(); checkAndNotify(); }
+  });
+})();
+</script>
+</body>
+</html>
