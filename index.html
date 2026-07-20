@@ -281,6 +281,10 @@ function assumedRateFor(meterId){
   return globalRate();
 }
 
+function toTs(reading){
+  return reading.ts || new Date(reading.date+'T12:00:00').getTime();
+}
+
 function getStats(meterId){
   const readings = [...state.readings[meterId]].sort((a,b)=> a.date < b.date ? -1 : 1);
   const th = state.thresholds[meterId] || {low: DEFAULT_LOW, crit: DEFAULT_CRIT};
@@ -297,13 +301,13 @@ function getStats(meterId){
   if(cycle.length >= 2){
     const first = cycle[0], last = cycle[cycle.length-1];
     const drop = first.value - last.value;
-    const span = daysBetween(first.date, last.date);
-    if(drop > 0 && span > 0) learnedRate = drop / span;
+    const span = (toTs(last) - toTs(first)) / 86400000;
+    if(drop > 0 && span > 0.02) learnedRate = drop / span;
   }
   const usingAssumed = learnedRate === null;
   const rate = usingAssumed ? assumedRateFor(meterId) : learnedRate;
 
-  const daysSinceAnchor = daysBetween(anchor.date, todayStr());
+  const daysSinceAnchor = Math.max((Date.now() - toTs(anchor)) / 86400000, 0);
   let projected = anchor.value - rate * daysSinceAnchor;
   const confirmedEmpty = anchor.value <= 0;
   projected = Math.max(projected, 0);
@@ -318,7 +322,7 @@ function getStats(meterId){
 }
 
 function statusRank(s){ return {empty:0, crit:1, low:2, ok:3, nodata:4}[s]; }
-function fmt(n){ return (Math.round(n*100)/100).toLocaleString(); }
+function fmt(n){ return n.toLocaleString(undefined, {minimumFractionDigits:2, maximumFractionDigits:2}); }
 function friendlyDays(d){
   const r = Math.round(d);
   if(r <= 0) return 'due to run out today';
@@ -337,11 +341,6 @@ function phraseFor(s){
 
 function statusLabel(s){ return {ok:'Healthy', low:'Low', crit:'Critical', empty:'Empty', nodata:'No data'}[s]; }
 
-function addDays(dateStr, days){
-  const d = new Date(dateStr);
-  d.setTime(d.getTime() + days*86400000);
-  return d.toISOString().slice(0,10);
-}
 function fmtDateShort(d){
   return new Date(d).toLocaleDateString('en-GB',{day:'numeric', month:'short'});
 }
@@ -354,8 +353,8 @@ function expectedFinishText(s){
   if(s.confirmedEmpty) return 'Confirmed empty on '+fmtDateShort(s.anchor.date);
   if(s.projected <= 0.01) return 'Likely already out — please confirm';
   if(s.daysRemaining === null) return null;
-  const finishDate = addDays(todayStr(), s.daysRemaining);
-  return 'Expected to finish '+fmtDateFull(finishDate);
+  const finishDate = new Date(Date.now() + s.daysRemaining*86400000);
+  return 'Expected to finish '+fmtDateFull(finishDate.toISOString());
 }
 
 function refAmountFor(meterId){
@@ -371,7 +370,7 @@ function ringPercent(meterId, s){
 
 const STATUS_COLORS = {ok:'#1F6F5C', low:'#C98A2C', crit:'#D8593F', empty:'#D8593F', nodata:'#D3D9C9'};
 
-function buildRing(percent, status, size, strokeWidth){
+function buildRing(percent, status, size, strokeWidth, arcId){
   const r = (size - strokeWidth)/2;
   const c = 2*Math.PI*r;
   const dash = c * Math.max(0, Math.min(100, percent))/100;
@@ -380,17 +379,17 @@ function buildRing(percent, status, size, strokeWidth){
   let svg = '<svg width="'+size+'" height="'+size+'" viewBox="0 0 '+size+' '+size+'">';
   svg += '<circle cx="'+cx+'" cy="'+cy+'" r="'+r+'" fill="none" stroke="#E4E8DE" stroke-width="'+strokeWidth+'"/>';
   if(status !== 'nodata'){
-    svg += '<circle cx="'+cx+'" cy="'+cy+'" r="'+r+'" fill="none" stroke="'+color+'" stroke-width="'+strokeWidth+'" stroke-linecap="round" stroke-dasharray="'+dash.toFixed(1)+' '+c.toFixed(1)+'" transform="rotate(-90 '+cx+' '+cy+')"/>';
+    svg += '<circle id="'+arcId+'" data-c="'+c.toFixed(2)+'" cx="'+cx+'" cy="'+cy+'" r="'+r+'" fill="none" stroke="'+color+'" stroke-width="'+strokeWidth+'" stroke-linecap="round" stroke-dasharray="'+dash.toFixed(1)+' '+c.toFixed(1)+'" transform="rotate(-90 '+cx+' '+cy+')"/>';
   }
   svg += '</svg>';
   return svg;
 }
-function buildRingWithLabel(percent, status, size, strokeWidth, big){
-  const svg = buildRing(percent, status, size, strokeWidth);
+function buildRingWithLabel(percent, status, size, strokeWidth, big, arcId, labelId){
+  const svg = buildRing(percent, status, size, strokeWidth, arcId);
   const label = status==='nodata' ? '' : Math.round(percent)+'%';
   const fontSize = big ? 24 : 13;
   return '<div style="position:relative;width:'+size+'px;height:'+size+'px;flex-shrink:0;">'+svg+
-    (label ? '<div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-weight:600;font-size:'+fontSize+'px;color:var(--text-primary);">'+label+'</div>' : '')+
+    (label ? '<div id="'+labelId+'" style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-weight:600;font-size:'+fontSize+'px;color:var(--text-primary);">'+label+'</div>' : '')+
     '</div>';
 }
 
@@ -400,13 +399,13 @@ function buildDetailPanel(meterId){
     return '<p class="empty-note">No readings yet — log a balance to see the gauge.</p>';
   }
   const pct = ringPercent(meterId, s);
-  const ring = buildRingWithLabel(pct, s.status, 132, 14, true);
+  const ring = buildRingWithLabel(pct, s.status, 132, 14, true, 'ra-detail-'+meterId, 'rl-detail-'+meterId);
   const finishText = expectedFinishText(s);
   let html = '<div style="display:flex;gap:20px;align-items:center;flex-wrap:wrap;">';
   html += ring;
   html += '<div style="flex:1;min-width:170px;">';
-  html += '<div class="balance-value '+s.status+'" style="font-size:24px;">GH¢ '+fmt(s.projected)+'</div>';
-  html += '<div class="balance-caption">'+(finishText || 'Log another reading to estimate a finish date')+'</div>';
+  html += '<div id="dv-'+meterId+'" class="balance-value '+s.status+'" style="font-size:24px;">GH¢ '+fmt(s.projected)+'</div>';
+  html += '<div id="df-'+meterId+'" class="balance-caption">'+(finishText || 'Log another reading to estimate a finish date')+'</div>';
   html += '<div class="balance-caption" style="margin-top:8px;">Using '+(s.usingAssumed ? 'your typical top-up pace' : 'this meter\'s own usage history')+' · ≈ GH¢ '+fmt(s.rate)+'/day</div>';
   html += '<div class="balance-caption">Low below GH¢ '+fmt(s.th.low)+' · Critical below GH¢ '+fmt(s.th.crit)+'</div>';
   html += '<div class="balance-caption">Gauge shows balance as a share of a typical GH¢ '+fmt(refAmountFor(meterId))+' top-up</div>';
@@ -417,7 +416,7 @@ function buildDetailPanel(meterId){
 function render(){
   const app = document.getElementById('app');
   const stats = {};
-  METERS.forEach(m=> stats[m.id] = getStats(m.id));
+  METERS.forEach(m=> { stats[m.id] = getStats(m.id); lastRenderedStatus[m.id] = stats[m.id].status; });
   const counts = {ok:0, low:0, crit:0, empty:0, nodata:0};
   METERS.forEach(m=> counts[stats[m.id].status]++);
   const sorted = [...METERS].sort((a,b)=> statusRank(stats[a.id].status) - statusRank(stats[b.id].status));
@@ -482,20 +481,20 @@ function render(){
     if(s.status==='nodata'){
       html += '    <div class="balance-value nodata">No balance logged yet</div>';
     }else{
-      html += '    <div class="balance-value '+s.status+'">GH¢ '+fmt(s.projected)+'</div>';
+      html += '    <div id="bv-'+m.id+'" class="balance-value '+s.status+'">GH¢ '+fmt(s.projected)+'</div>';
       let cap = 'last confirmed GH¢ '+fmt(s.anchor.value)+' on '+s.anchor.date;
       if(s.usingAssumed) cap += ' · using your typical top-up pace';
       else cap += ' · calculated from this meter\'s own usage';
       html += '    <div class="balance-caption">'+cap+'</div>';
       const dayText = s.status==='empty' ? '' : friendlyDays(s.daysRemaining);
-      html += '    <div class="balance-phrase">'+phraseFor(s)+(dayText? ' ('+dayText+')':'')+'</div>';
+      html += '    <div id="bp-'+m.id+'" class="balance-phrase">'+phraseFor(s)+(dayText? ' ('+dayText+')':'')+'</div>';
       const finishText = expectedFinishText(s);
-      if(finishText) html += '    <div class="balance-caption" style="margin-top:5px;">'+finishText+'</div>';
+      html += '    <div id="bf-'+m.id+'" class="balance-caption" style="margin-top:5px;'+(finishText?'':'display:none;')+'">'+(finishText||'')+'</div>';
     }
     html += '  </div>';
     if(s.status !== 'nodata'){
       const pct = ringPercent(m.id, s);
-      html += buildRingWithLabel(pct, s.status, 64, 8, false);
+      html += buildRingWithLabel(pct, s.status, 64, 8, false, 'ra-'+m.id, 'rl-'+m.id);
     }
     html += '  </div>';
 
@@ -610,9 +609,11 @@ async function logReading(meterId){
   const value = parseFloat(input.value);
   if(isNaN(value) || value<0) return;
   const today = todayStr();
+  const now = Date.now();
   const list = state.readings[meterId];
   const idx = list.findIndex(r=> r.date===today);
-  if(idx>=0) list[idx].value = value; else list.push({date:today, value});
+  if(idx>=0){ list[idx].value = value; list[idx].ts = now; }
+  else list.push({date:today, value, ts:now});
   await saveState(); render(); checkAndNotify();
 }
 
@@ -638,10 +639,53 @@ function checkAndNotify(){
   if(changed) saveState();
 }
 
+let lastRenderedStatus = {};
+
+function patchRing(arcId, labelId, pct, status){
+  const arc = document.getElementById(arcId);
+  if(arc){
+    const c = parseFloat(arc.dataset.c);
+    const dash = c * Math.max(0, Math.min(100, pct)) / 100;
+    arc.setAttribute('stroke-dasharray', dash.toFixed(1)+' '+c.toFixed(1));
+    arc.setAttribute('stroke', STATUS_COLORS[status] || '#D3D9C9');
+  }
+  const label = document.getElementById(labelId);
+  if(label) label.textContent = status==='nodata' ? '' : Math.round(pct)+'%';
+}
+
+function tickUpdate(){
+  let statusChanged = false;
+  METERS.forEach(m=>{
+    const s = getStats(m.id);
+    if(lastRenderedStatus[m.id] !== undefined && lastRenderedStatus[m.id] !== s.status) statusChanged = true;
+    if(s.status === 'nodata') return;
+
+    const bv = document.getElementById('bv-'+m.id);
+    if(bv){ bv.textContent = 'GH¢ '+fmt(s.projected); bv.className = 'balance-value '+s.status; }
+    const bp = document.getElementById('bp-'+m.id);
+    if(bp){
+      const dayText = s.status==='empty' ? '' : friendlyDays(s.daysRemaining);
+      bp.textContent = phraseFor(s) + (dayText ? ' ('+dayText+')' : '');
+    }
+    const bf = document.getElementById('bf-'+m.id);
+    if(bf) bf.textContent = expectedFinishText(s) || '';
+    const pct = ringPercent(m.id, s);
+    patchRing('ra-'+m.id, 'rl-'+m.id, pct, s.status);
+
+    const dv = document.getElementById('dv-'+m.id);
+    if(dv){ dv.textContent = 'GH¢ '+fmt(s.projected); dv.className = 'balance-value '+s.status; dv.style.fontSize = '24px'; }
+    const df = document.getElementById('df-'+m.id);
+    if(df) df.textContent = expectedFinishText(s) || 'Log another reading to estimate a finish date';
+    patchRing('ra-detail-'+m.id, 'rl-detail-'+m.id, pct, s.status);
+  });
+  if(statusChanged){ render(); checkAndNotify(); }
+}
+
 (async function init(){
   await loadState();
   render();
   checkAndNotify();
+  setInterval(tickUpdate, 1000);
   setInterval(()=>{ render(); checkAndNotify(); }, 15*60*1000);
   document.addEventListener('visibilitychange', ()=>{
     if(document.visibilityState === 'visible'){ render(); checkAndNotify(); }
